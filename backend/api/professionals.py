@@ -1,5 +1,5 @@
 from flask_restful import Resource
-from flask import request , jsonify
+from flask import request, jsonify
 from flask_security import auth_required, current_user
 from backend.models import Professional, ProfessionalStats, db
 
@@ -39,7 +39,9 @@ class ProfessionalProfile(Resource):
             professional.address = data.get('address', professional.address)
             professional.contact_no = data.get('contact_no', professional.contact_no)
             professional.description = data.get('description', professional.description)
+            professional.service_id = data.get("service_id", professional.service_id)
             professional.experience = data.get('experience', professional.experience)
+
             db.session.commit()
             return {'message': 'Profile updated successfully.'}, 200
         except Exception as e:
@@ -51,12 +53,20 @@ class Professionals(Resource):
         try:
             service_id = request.args.get('serviceId', type=int)  # Extract service ID from query parameters
             if service_id:
-                # Filter professionals by service ID if provided
                 professionals = Professional.query.filter_by(service_id=service_id).all()
             else:
                 professionals = Professional.query.all()
-                professional_list = [{'id': p.id, 'name': p.name, 'contact_no': p.contact_no, 'description': p.description, 'experience': p.experience} for p in professionals]
-                return professional_list, 200
+
+            professional_list = [
+                {
+                    'id': p.id,
+                    'name': p.name,
+                    'contact_no': p.contact_no,
+                    'description': p.description,
+                    'experience': p.experience
+                } for p in professionals
+            ]
+            return professional_list, 200
         except Exception as e:
             return {'message': 'An error occurred.', 'error': str(e)}, 500
         
@@ -73,7 +83,7 @@ class ProfessionalStatsResource(Resource):
             "block": professional_stats.block,
             "average_rating": professional_stats.average_rating,
         }
-        return jsonify(response)
+        return response, 200  # ✅ No need for jsonify
 
     def put(self, user_id):
         professional_stats = ProfessionalStats.query.filter_by(profile_id=user_id).first()

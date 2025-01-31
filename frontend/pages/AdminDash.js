@@ -20,6 +20,7 @@ export default {
                             <th>Address</th>
                             <th>Description</th>
                             <th>Experience</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,6 +31,7 @@ export default {
                             <td>{{ item.address }}</td>
                             <td>{{ item.description }}</td>
                             <td>{{ item.experience }}</td>
+                            <td><button @click="selectProfessional(item)">View</button></td>
                         </tr>
                     </tbody>
                 </table>
@@ -82,24 +84,22 @@ export default {
     `,
     data() {
         return {
-            dataList: [], // Holds the data for the active section
-            activeSection: null, // Tracks the currently active section ('professionals', 'customers', or 'services')
+            dataList: [], 
+            activeSection: null, 
+            selectedProfessional: null, 
         };
     },
     methods: {
         async loadData(section) {
-            // Update the active section
-            this.activeSection = section;
+            this.activeSection = section; 
+            this.dataList = []; 
 
-            // Define API endpoints for each section
             const apiEndpoints = {
                 professionals: '/api/professionals',
                 customers: '/api/customers',
                 services: '/api/services'
             };
 
-            // Clear the data list and fetch data for the selected section
-            this.dataList = [];
             try {
                 const res = await fetch(`${location.origin}${apiEndpoints[section]}`, {
                     headers: {
@@ -111,20 +111,23 @@ export default {
                     const data = await res.json();
                     this.dataList = data;
 
-                    // Initialize DataTable for the active section
                     this.$nextTick(() => {
                         if (!$.fn.dataTable.isDataTable(`#${section}Table`)) {
                             new DataTable(`#${section}Table`);
                         }
                     });
 
-                    console.log(`${section} data:`, data);
                 } else {
                     console.error(`Failed to fetch ${section}:`, res.status, res.statusText);
                 }
             } catch (error) {
-                console.error(`An error occurred while fetching ${section}:`, error);
+                console.error(`Error while fetching ${section}:`, error);
             }
-        }
-    }
+        },
+
+        selectProfessional(professional) {
+            this.selectedProfessional = professional;
+            this.$router.push({ name: 'ProfStats', params: { id: professional.id } }); // Redirect to ProfStats with professional ID
+        },
+    },
 };

@@ -3,27 +3,25 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security import UserMixin, RoleMixin
 
 db = SQLAlchemy()
+# Association table for many-to-many relationship
+user_roles = db.Table(
+    'user_roles',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('role_id', db.Integer, db.ForeignKey('role.id'))
+)
 
-# User model for authentication and role management
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    fs_uniquifier = db.Column(db.String(255), unique=True, nullable=False)  # Flask-Security-specific
-    active = db.Column(db.Boolean, default=True)
-    roles = db.relationship('Role', backref='users', secondary='user_roles')  # Many-to-Many with Role
+    fs_uniquifier = db.Column(db.String(255), unique=True, nullable=False)  # Flask-Security
+    active = db.Column(db.String(15), default="Pending")  # String instead of Boolean
+    roles = db.relationship('Role', secondary=user_roles, backref=db.backref('users', lazy='dynamic'))  # Many-to-many
 
-# Role model for access control
 class Role(db.Model, RoleMixin):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    description = db.Column(db.String(255), nullable=True)
-
-# Association table for User and Role
-class UserRoles(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
 
 # Review model for customer feedback
 class Review(db.Model):
@@ -33,7 +31,7 @@ class Review(db.Model):
     rating = db.Column(db.Integer, nullable=False)  # Rating from 1 to 5
     comment = db.Column(db.Text, nullable=True)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    ServiceRequest_id = db.Column(db.Integer, db.ForeignKey('service_request.id'), nullable=False)
+    service_request_id = db.Column(db.Integer, db.ForeignKey('service_request.id'), nullable=False)
 
 # Service model for services offered
 class Service(db.Model):
@@ -59,20 +57,22 @@ class ProfessionalStats(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey('professional.id'), nullable=False)  # One-to-One with Professional
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     approved_status = db.Column(db.String(15), default='Pending')  # Approval status
-    block = db.Column(db.String(10), default='NO')  # Whether the professional is blocked
+    block = db.Column(db.String(10), default='No')  # Whether the professional is blocked
     average_rating = db.Column(db.Float, default=0.0)  # Professional's average rating
 
+# Customer model for service request functionality
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True, nullable=False)  # One-to-One with User
     name = db.Column(db.String(100), nullable=True)
     contact_no = db.Column(db.String(15), nullable=True)
     address = db.Column(db.String(200), nullable=True)
-    block = db.Column(db.String(10), default='NO')  # Whether cus is blocked
+    block = db.Column(db.String(10), default='NO')  # Whether the customer is blocked
 
     # One-to-One relationship with User (authentication data)
     user = db.relationship("User", backref="customer")
 
+# ServiceRequest model for tracking service requests by customers
 class ServiceRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_id = db.Column(db.Integer, db.ForeignKey('service.id'), nullable=False)  # Service being requested

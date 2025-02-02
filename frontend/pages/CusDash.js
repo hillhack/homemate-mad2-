@@ -2,129 +2,154 @@ export default {
   template: `
     <div>
       <h1>Customer Dashboard</h1>
-      <button @click="toggleServices">{{ showServices ? 'Hide Services' : 'View Services' }}</button>
-      <button @click="loadServiceHistory">Service History</button>
+      <button @click="currentSection = 'Profile'">Profile</button>
+      <button @click="currentSection = 'Services'">Services</button>
+      <button @click="currentSection = 'History'">History</button>
 
-      <!-- Services Table -->
-      <div v-if="showServices">
-        <h2>Available Services</h2>
-        <div v-if="services.length > 0">
-          <table class="service-table">
-            <thead>
-              <tr>
-                <th>Service Name</th>
-                <th>Description</th>
-                <th>Price</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="service in services" :key="service.id">
-                <td>{{ service.name }}</td>
-                <td>{{ service.description }}</td>
-                <td>₹{{ service.price }}</td>
-                <td>
-                  <button 
-                    class="btn-view" 
-                    @click="viewProfessionals(service.id)"
-                  >
-                    View Professionals
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="no-data">
-          No services available
-        </div>
+      <div v-if="currentSection === 'Profile'">
+        <h3>Profile</h3>
+        <form @submit.prevent="updateProfile">
+          <input v-model="profile.name" placeholder="Name" required />
+          <input v-model="profile.contact_no" placeholder="Contact Number" required />
+          <input v-model="profile.address" placeholder="Address" required />
+          <button type="submit">Update</button>
+        </form>
       </div>
 
-      <!-- Professionals Modal -->
-      <div v-if="showProfessionalsModal" class="modal-overlay">
-        <div class="modal-content">
-          <h3>Available Professionals for {{ selectedServiceName }}</h3>
-          <div v-if="selectedProfessionals.length > 0">
-            <table class="professional-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Experience</th>
-                  <th>Rating</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="pro in selectedProfessionals" :key="pro.id">
-                  <td>{{ pro.name }}</td>
-                  <td>{{ pro.experience }} years</td>
-                  <td>⭐ {{ pro.rating }}/5</td>
-                  <td>{{ pro.description }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="no-data">
-            No professionals available
-          </div>
-          <button class="btn-close" @click="closeModal">Close</button>
-        </div>
+      <div v-if="currentSection === 'Services'">
+        <h3>Available Services</h3>
+        <ul>
+          <li v-for="service in services" :key="service.id">
+            {{ service.name }} - ₹{{ service.price }}
+            <button @click="viewProfessionals(service)">View Professionals</button>
+          </li>
+        </ul>
+      </div>
+      
+      <div v-if="professionals.length">
+        <h3>Professionals</h3>
+        <table>
+          <thead><tr><th>Name</th><th>Experience</th><th>Rating</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr v-for="pro in professionals" :key="pro.id">
+              <td>{{ pro.name }}</td><td>{{ pro.experience }} years</td><td>⭐ {{ pro.rating }}/5</td>
+              <td><button @click="bookService(pro.id)">Book</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <button @click="closeProfessionals">Close</button>
+      </div>
+      
+      <div v-if="currentSection === 'History'">
+        <h3>Service History</h3>
+        <ul><li v-for="history in serviceHistory" :key="history.id">{{ history.serviceName }} - ₹{{ history.amount }}</li></ul>
       </div>
     </div>
   `,
 
   data() {
     return {
+      currentSection: 'Profile',
+      profile: {},
       services: [],
-      selectedProfessionals: [],
-      showServices: false,
-      showProfessionalsModal: false,
-      selectedServiceName: ""
+      professionals: [],
+      serviceHistory: [],
+      selectedService: null,
+      userId: JSON.parse(localStorage.getItem('user'))?.id || null,  // Handle null case
     };
   },
 
   methods: {
-    async toggleServices() {
-      this.showServices = !this.showServices;
-      if (this.showServices && this.services.length === 0) {
-        await this.loadServices();
+    async fetchData(url) {
+      try {
+        const res = await fetch(url, { headers: { 'Authentication-Token': this.$store.state.auth_token } });
+        if (!res.ok) {
+          throw new Error('Failed to fetch data');
+        }
+        return await res.json();
+      } catch (error) {
+        console.error(error);
+        alert('An error occurred. Please try again later.');
+        return [];
+      }
+    },
+
+    async loadProfile() {
+      if (this.userId) {
+        this.profile = await this.fetchData(`/api/customer/profile/${this.userId}`);
+      }
+    },
+
+    async updateProfile() {
+      if (this.userId) {
+        const res = await fetch(`/api/customer/profile/${this.userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authentication-Token': this.$store.state.auth_token },
+          body: JSON.stringify(this.profile),
+        });
+        if (res.ok) {
+          alert('Profile updated');
+        } else {
+          alert('Failed to update profile');
+        }
       }
     },
 
     async loadServices() {
-      try {
-        const token = this.$store.state.auth_token;
-        const response = await fetch(`${location.origin}/api/services`, {
-          headers: { 'Authentication-Token': token }
-        });
-        this.services = await response.json();
-      } catch (error) {
-        console.error("Error loading services:", error);
+      this.services = await this.fetchData('/api/services');
+    },
+
+    async viewProfessionals(service) {
+      this.selectedService = service;
+      this.professionals = await this.fetchData(`/api/professionals?serviceId=${service.id}`);
+    },
+
+    closeProfessionals() {
+      this.professionals = [];
+    },
+
+    // Book service without calling loadProfile() again (as profile is already loaded)
+    async bookService(professionalId) {
+      if (!this.profile.id) {
+        alert('Profile not found!');
+        return;
+      }
+
+      if (!this.selectedService) {
+        alert('No service selected!');
+        return;
+      }
+
+      const res = await fetch(`/api/requests/${this.profile.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authentication-Token': this.$store.state.auth_token },
+        body: JSON.stringify({
+          professional_id: professionalId,
+          service_id: this.selectedService.id,
+        }),
+      });
+
+      if (res.ok) {
+        alert('Service booked');
+        this.closeProfessionals();
+        this.loadServiceHistory(); // Refresh service history after booking
+      } else {
+        alert('Failed to book service');
       }
     },
 
-    async viewProfessionals(serviceId) {
-      try {
-        const token = this.$store.state.auth_token;
-        const response = await fetch(`${location.origin}/api/professionals?serviceId=${serviceId}`, {
-          headers: { 'Authentication-Token': token }
-        });
-        
-        this.selectedProfessionals = await response.json();
-        this.selectedServiceName = this.services.find(s => s.id === serviceId)?.name || "";
-        this.showProfessionalsModal = true;
-      } catch (error) {
-        console.error("Error loading professionals:", error);
+    // Load service history using profile.id
+    async loadServiceHistory() {
+      const role = 'customer';
+      if (this.profile.id) {
+        this.serviceHistory = await this.fetchData(`/api/requests/${this.profile.id}?role=${role}`);
       }
     },
+  },
 
-    closeModal() {
-      this.showProfessionalsModal = false;
-      this.selectedProfessionals = [];
-    },
-
-    loadServiceHistory() {
-      console.log("Service history functionality placeholder");
-    }
+  mounted() {
+    this.loadProfile();
+    this.loadServices();
+    this.loadServiceHistory();
   }
 };

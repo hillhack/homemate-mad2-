@@ -81,8 +81,3 @@ class ServiceRequest(db.Model):
     status = db.Column(db.String(50), default='Pending')  # Status of the service request (e.g., Pending, In Progress, Completed)
     request_date = db.Column(db.DateTime, default=datetime.utcnow)  # When the service request was created
     completion_date = db.Column(db.DateTime, nullable=True)  # When the service was completed
-
-    # Relationships
-    service = db.relationship('Service', backref=db.backref('service_requests', lazy=True))  # Related Service
-    customer = db.relationship('Customer', backref=db.backref('service_requests', lazy=True))  # Related Customer
-    professional = db.relationship('Professional', backref=db.backref('service_requests', lazy=True))  # Related Professional

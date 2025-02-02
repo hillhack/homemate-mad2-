@@ -34,5 +34,6 @@ app = create_app()
 import backend.create_initial_data
 import backend.routes
 
+
 if __name__ == '__main__':
     app.run()

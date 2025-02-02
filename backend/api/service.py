@@ -1,6 +1,7 @@
+from datetime import datetime
 from flask_restful import Resource
-from flask import request
-from backend.models import Service, db
+from flask import request , jsonify
+from backend.models import Service, db ,ServiceRequest
 from flask_security import auth_required, roles_required, current_user  # Flask-Security imports
 
 class ServiceListResource(Resource):
@@ -90,3 +91,59 @@ class ServiceResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {'message': 'An error occurred.', 'error': str(e)}, 500
+        
+class ServiceRequestResource(Resource):
+    @auth_required('token')
+    def get(self, profile_id):
+        """Fetch all service requests for a particular customer or professional."""
+        try:
+            role = request.args.get("role")
+            if not role:
+                return {"message": "Role is required in the request body"}, 400
+
+            if role == "customer":
+                service_requests = ServiceRequest.query.filter_by(customer_id=profile_id).all()
+            elif role == "professional":
+                service_requests = ServiceRequest.query.filter_by(professional_id=profile_id).all()
+            else:
+                return {"message": "Invalid role. Use 'customer' or 'professional'."}, 400
+
+            return jsonify([{
+                "id": req.id,
+                "service_id": req.service_id,
+                "customer_id": req.customer_id,
+                "professional_id": req.professional_id,
+                "status": req.status,
+                "request_date": req.request_date,
+                "completion_date": req.completion_date
+            } for req in service_requests])
+
+        except Exception as e:
+            return {"message": "An error occurred.", "error": str(e)}, 500
+
+    def post(self,profile_id):
+        """Allow a customer to book a service by creating a new service request."""
+        try:
+            data = request.get_json()
+
+            service_id = data.get("service_id")
+            professional_id = data.get("professional_id")  # The assigned professional
+            request_date = datetime.utcnow()
+
+            if not service_id  or not professional_id:
+                return {"message": "Missing required fields (service_id, customer_id, professional_id)"}, 400
+
+            new_request = ServiceRequest(
+                service_id=service_id,
+                customer_id=profile_id,
+                professional_id=professional_id,
+                request_date=request_date
+            )
+
+            db.session.add(new_request)
+            db.session.commit()
+            return {"message": "Service request created successfully", "id": new_request.id}, 201
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error creating service request", "error": str(e)}, 500

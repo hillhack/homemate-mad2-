@@ -3,60 +3,133 @@ export default {
   <div>
     <nav>
       <button @click="currentSection = 'profile'">Edit Profile</button>
+      <button @click="currentSection = 'pending'">Requests</button>
+      <button @click="currentSection = 'work'">Current Work</button>
       <button @click="currentSection = 'history'">History</button>
     </nav>
-    
-    <div v-if="currentSection === 'profile'">
-      <h2>Update Profile</h2>
-      <input placeholder="Name" v-model="profile.name" required />
-      <input placeholder="Contact Number" v-model="profile.contact_no" required />
-      <textarea placeholder="Description" v-model="profile.description"></textarea>
-      <input type="number" placeholder="Experience (years)" v-model="profile.experience" min="0" />
+
+    <!-- Profile Section -->
+    <div v-if="currentSection === 'profile'" class="section">
+      <h2>Edit Profile</h2>
+      <input v-model="profile.name" placeholder="Name" required />
+      <input v-model="profile.contact_no" placeholder="Contact Number" required />
+      <textarea v-model="profile.description" placeholder="Description"></textarea>
+      <input v-model="profile.experience" type="number" placeholder="Experience (years)" min="0" />
+
+      <!-- Service Selection -->
       <select v-model="profile.service_id" required>
         <option value="" disabled>Select a service</option>
         <option v-for="service in availableServices" :key="service.id" :value="service.id">{{ service.name }}</option>
         <option value="new">Add New Service...</option>
       </select>
-      <input v-if="profile.service_id === 'new'" placeholder="New Service Name" v-model="newServiceName" required />
+
+      <input v-if="profile.service_id === 'new'" v-model="newServiceName" placeholder="New Service Name" required />
+      
       <button @click="updateProfile" :disabled="isSaving">{{ isSaving ? 'Saving...' : 'Save Profile' }}</button>
     </div>
 
-    <div v-if="currentSection === 'history'">
+    <!-- Pending Requests -->
+    <div v-if="currentSection === 'pending'" class="section">
+      <h2>Pending Requests</h2>
+      <ul v-if="pendingRequests.length">
+        <li v-for="request in pendingRequests" :key="request.id">
+          <p><strong>Service:</strong> {{ getServiceName(request.service_id) }}</p>
+          <p><strong>Date:</strong> {{ formatDate(request.request_date) }}</p>
+          <button @click="updateRequestStatus(request.id, 'Accepted')">Accept</button>
+          <button @click="updateRequestStatus(request.id, 'Rejected')">Reject</button>
+        </li>
+      </ul>
+      <p v-else>No pending requests found.</p>
+    </div>
+
+    <!-- Current Work -->
+    <div v-if="currentSection === 'work'" class="section">
+      <h2>Current Work</h2>
+      <ul v-if="currentWork.length">
+        <li v-for="work in currentWork" :key="work.id">
+          <p><strong>Service:</strong> {{ getServiceName(work.service_id) }}</p>
+          <p><strong>Started:</strong> {{ formatDate(work.request_date) }}</p>
+        </li>
+      </ul>
+      <p v-else>No ongoing work.</p>
+    </div>
+
+    <!-- History Section -->
+    <div v-if="currentSection === 'history'" class="section">
       <h2>Service History</h2>
-      <p>Past service records...</p>
+      <ul v-if="completed.length || rejectedRequests.length">
+        <li v-for="record in completed" :key="record.id">
+          <p><strong>Completed Service:</strong> {{ getServiceName(record.service_id) }}</p>
+          <p><strong>Completed Date:</strong> {{ formatDate(record.request_date) }}</p>
+        </li>
+        <li v-for="record in rejectedRequests" :key="record.id">
+          <p><strong>Rejected Service:</strong> {{ getServiceName(record.service_id) }}</p>
+          <p><strong>Request Date:</strong> {{ formatDate(record.request_date) }}</p>
+        </li>
+      </ul>
+      <p v-else>No past records.</p>
     </div>
   </div>
   `,
   data() {
     return {
       currentSection: 'profile',
-      profile: { name: '', contact_no: '', description: '', experience: 0, service_id: null },
+      profile: { id: null, name: '', contact_no: '', description: '', experience: 0, service_id: null },
       availableServices: [],
       newServiceName: '',
+      pendingRequests: [],
+      currentWork: [],
+      completed: [],
+      rejectedRequests: [],
       isSaving: false
     };
   },
   methods: {
     async loadProfile() {
+      const user = JSON.parse(localStorage.getItem('user'));
       try {
-        const user = JSON.parse(localStorage.getItem('user'));
         this.profile = await this.fetchData(`/api/professional/profile/${user.id}`);
-      } catch { alert('Failed to load profile'); }
+        this.availableServices = await this.fetchData('/api/services');
+        if (!this.availableServices.some(service => service.id === this.profile.service_id)) {
+          this.profile.service_id = '';
+        }
+        await this.loadRequests();
+      } catch {
+        alert('Failed to load profile');
+      }
+    },
+    async loadRequests() {
+      if (!this.profile.id) return;
+      try {
+        const allRequests = await this.fetchData(`/api/requests/${this.profile.id}?role=professional`);
+        this.pendingRequests = allRequests.filter(request => request.status === "Pending");
+        this.rejectedRequests = allRequests.filter(request => request.status === "Rejected");
+        this.currentWork = allRequests.filter(request => request.status === "Accepted");
+        this.completed = allRequests.filter(request => request.status === "Completed");
+      } catch {
+        alert('Failed to load requests');
+      }
     },
     async updateProfile() {
       if (this.isSaving) return;
       try {
         this.isSaving = true;
         const user = JSON.parse(localStorage.getItem('user'));
+
         if (this.profile.service_id === 'new' && this.newServiceName.trim()) {
           const newService = await this.fetchData('/api/services', 'POST', { name: this.newServiceName.trim() });
           this.profile.service_id = newService.id;
           this.newServiceName = '';
         }
+
         await this.fetchData(`/api/professional/profile/${user.id}`, 'PUT', this.profile);
         alert('Profile updated');
-      } catch { alert('Update failed'); }
-      finally { this.isSaving = false; }
+        await this.loadProfile();
+      } catch {
+        alert('Update failed');
+      } finally {
+        this.isSaving = false;
+      }
     },
     async fetchData(url, method = 'GET', body = null) {
       const res = await fetch(url, {
@@ -66,6 +139,23 @@ export default {
       });
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       return res.json();
+    },
+    getServiceName(serviceId) {
+      const service = this.availableServices.find(s => s.id === serviceId);
+      return service ? service.name : 'Unknown Service';
+    },
+    formatDate(dateString) {
+      const date = new Date(dateString);
+      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    },
+    async updateRequestStatus(requestId, status) {
+      try {
+        await this.fetchData(`/api/requests/${this.profile.id}`, 'PUT', { request_id: requestId, status: status });
+        alert(`Request ${status}`);
+        await this.loadRequests();
+      } catch {
+        alert('Failed to update request');
+      }
     }
   },
   mounted() {

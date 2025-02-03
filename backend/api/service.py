@@ -147,3 +147,29 @@ class ServiceRequestResource(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": "Error creating service request", "error": str(e)}, 500
+        
+    
+    @auth_required('token')
+    def put(self, profile_id):
+        """Update the status of a service request by a professional."""
+        try:
+            data = request.get_json()
+            request_id = data.get("request_id")
+            new_status = data.get("status")
+
+            if not request_id or not new_status:
+                return {"message": "Missing required fields (request_id, status)"}, 400
+
+            service_request = ServiceRequest.query.filter_by(id=request_id, professional_id=profile_id).first()
+
+            if not service_request:
+                return {"message": "Service request not found or unauthorized"}, 404
+
+            service_request.status = new_status
+            db.session.commit()
+
+            return {"message": f"Service request updated to '{new_status}'"}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Error updating service request", "error": str(e)}, 500

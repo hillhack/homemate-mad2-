@@ -1,10 +1,12 @@
 from flask_restful import Resource
-from flask import request, jsonify
+from flask import request, current_app as app
 from flask_security import auth_required, current_user
 from backend.models import Professional, ProfessionalStats, db
+cache = app.cache
 
 class ProfessionalProfile(Resource):
     @auth_required('token')
+    @cache.memoize(timeout = 5)
     def get(self, user_id):
         try:
             if current_user.id != user_id:
@@ -49,6 +51,7 @@ class ProfessionalProfile(Resource):
             return {'message': 'An error occurred.', 'error': str(e)}, 500
 
 class Professionals(Resource):
+    @cache.cached(timeout = 5, key_prefix = "professional_list")
     def get(self):
         try:
             service_id = request.args.get('serviceId', type=int)  # Extract service ID from query parameters
@@ -71,6 +74,7 @@ class Professionals(Resource):
             return {'message': 'An error occurred.', 'error': str(e)}, 500
         
 class ProfessionalStatsResource(Resource):
+    @cache.memoize(timeout = 5)
     def get(self, user_id):
         professional_stats = ProfessionalStats.query.filter_by(profile_id=user_id).first()
         if not professional_stats:

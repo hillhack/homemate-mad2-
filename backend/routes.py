@@ -1,8 +1,13 @@
 from flask import current_app as app, jsonify, render_template, request
 from flask_security import verify_password, hash_password
 from backend.models import User, db, Professional, Customer, ProfessionalStats
+from datetime import datetime
 
 datastore = app.security.datastore
+@app.get('/cache')
+def cache():
+    return {'time': str(datetime.now())}
+
 
 @app.route('/')
 def home():

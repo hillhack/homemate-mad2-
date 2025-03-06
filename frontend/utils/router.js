@@ -8,6 +8,7 @@ import ProfPage from "../pages/ProfDash.js";
 import RegisterPage from "../pages/Register.js";
 import ProfessionalDetail from '../pages/ProfStats.js';
 import store from './store.js'
+import CustomerDetail from '../pages/CusStats.js'
 
 
 const routes = [
@@ -18,6 +19,7 @@ const routes = [
     {path : '/admin-dashboard', component : AdminDashboardPage, meta : {requiresLogin : true, role : "admin"}},
     { path: '/cus-dashboard', component: CusPage, meta: { requiresLogin: true, role: 'customer' } },
     {path: '/professional/stats/:id',component: ProfessionalDetail,name: 'ProfStats',props: true, },
+    {path:'/customer/stats/:id',component:CustomerDetail, name:'CusStats', props:true,}
     
 ]
 

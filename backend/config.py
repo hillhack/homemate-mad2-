@@ -11,5 +11,9 @@ class LocalDevelopmentConfig(Config):
     SECURITY_TOKEN_AUTHENTICATION_HEADER = 'Authentication-Token'
     SECURITY_TOKEN_MAX_AGE = 3600
 
+    # cache specific
+    CACHE_TYPE =  "RedisCache"
+    CACHE_DEFAULT_TIMEOUT = 30
+    CACHE_REDIS_PORT = 6379
 
     WTF_CSRF_ENABLED = False

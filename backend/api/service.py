@@ -1,11 +1,13 @@
 from datetime import datetime
 from flask_restful import Resource
-from flask import request , jsonify
+from flask import request , jsonify,current_app as app
 from backend.models import Service, db ,ServiceRequest
 from flask_security import auth_required, roles_required, current_user  # Flask-Security imports
+cache = app.cache
 
 class ServiceListResource(Resource):
     # This is for /api/services to only handle GET requests (fetch all services)
+    @cache.cached(timeout = 5, key_prefix = "service_list")
     def get(self):
         try:
             services = Service.query.all()
@@ -29,6 +31,7 @@ class ServiceListResource(Resource):
 class ServiceResource(Resource):
     # This is for /api/services/<int:service_id> to handle CRUD operations
     @auth_required('token')  # Ensure the user is authenticated
+    @cache.memoize(timeout = 5)
     def get(self, service_id):
         """
         Get a specific service by its ID. Both Admin and Professional can view.
@@ -94,6 +97,7 @@ class ServiceResource(Resource):
         
 class ServiceRequestResource(Resource):
     @auth_required('token')
+    @cache.cached(timeout = 5, key_prefix = "prof_service")
     def get(self, profile_id):
         """Fetch all service requests for a particular customer or professional."""
         try:

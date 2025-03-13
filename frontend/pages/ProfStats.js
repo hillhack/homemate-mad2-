@@ -16,13 +16,14 @@ export default {
                 <p><strong>Name:</strong> {{ selectedProfessional.name || "N/A" }}</p>
                 <p><strong>ID:</strong> {{ selectedProfessional.id }}</p>
                 <p><strong>Rating:</strong> {{ selectedProfessional.average_rating || "N/A" }}</p>
-                <p><strong>Status:</strong> {{ selectedProfessional.block ? 'Blocked' : 'Active' }}</p>
+                <p><strong>Status:</strong> {{ selectedProfessional.block === 1 ? 'Blocked' : 'Unblocked' }}</p>
                 <p><strong>Approval:</strong> {{ selectedProfessional.approved_status }}</p>
                 <p><strong>Created:</strong> {{ formatDate(selectedProfessional.date_created) }}</p>
-                <button @click="toggle('block', !selectedProfessional.block)">
-                    {{ selectedProfessional.block ? 'Unblock' : 'Block' }}
+
+                <button @click="toggleBlock">
+                    {{ selectedProfessional.block === 1 ? 'Unblock' : 'Block' }}
                 </button>
-                <button @click="toggle('approved_status', selectedProfessional.approved_status === 'approved' ? 'disapproved' : 'approved')">
+                <button @click="toggleApproval">
                     {{ selectedProfessional.approved_status === 'approved' ? 'Disapprove' : 'Approve' }}
                 </button>
                 <button @click="selectedProfessional = null">Close</button>
@@ -35,7 +36,9 @@ export default {
             this.loading = true;
             this.error = null;
             try {
-                const res = await fetch(`/api/professional/stats/${id}`, { headers: { 'Authentication-Token': this.$store.state.auth_token } });
+                const res = await fetch(`/api/professional/stats/${id}`, { 
+                    headers: { 'Authentication-Token': this.$store.state.auth_token } 
+                });
                 if (!res.ok) throw new Error(res.statusText);
                 this.selectedProfessional = await res.json();
             } catch (e) {
@@ -44,19 +47,53 @@ export default {
                 this.loading = false;
             }
         },
-        async toggle(field, value) {
+
+        async toggleBlock() {
             try {
-                await fetch(`/api/professional/stats/${this.selectedProfessional.id}`, {
+                const newStatus = this.selectedProfessional.block === 1 ? 0 : 1; // Toggle between 1 (Blocked) and 0 (Unblocked)
+                const res = await fetch(`/api/professional/stats/${this.selectedProfessional.id}`, {
                     method: "PUT",
-                    headers: { 'Authentication-Token': this.$store.state.auth_token, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ [field]: value }),
+                    headers: { 
+                        'Authentication-Token': this.$store.state.auth_token, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ block: newStatus }),
                 });
-                this.selectedProfessional[field] = value;
+
+                if (!res.ok) throw new Error("Failed to update block status");
+
+                // Ensure Vue updates the UI reactively
+                this.$set(this.selectedProfessional, "block", newStatus);
+
             } catch (e) {
                 console.error(e.message);
             }
         },
-        formatDate: date => new Date(date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }),
+
+        async toggleApproval() {
+            try {
+                const newStatus = this.selectedProfessional.approved_status === "approved" ? "disapproved" : "approved";
+                const res = await fetch(`/api/professional/stats/${this.selectedProfessional.id}`, {
+                    method: "PUT",
+                    headers: { 
+                        'Authentication-Token': this.$store.state.auth_token, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ approved_status: newStatus }),
+                });
+
+                if (!res.ok) throw new Error("Failed to update approval status");
+
+                this.$set(this.selectedProfessional, "approved_status", newStatus);
+
+            } catch (e) {
+                console.error(e.message);
+            }
+        },
+
+        formatDate(date) {
+            return new Date(date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+        }
     },
     mounted() {
         this.fetchDetails();

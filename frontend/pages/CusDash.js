@@ -2,10 +2,11 @@ export default {
   template: `
     <div>
       <h1>Customer Dashboard</h1>
-      <button @click="currentSection = 'Profile'">Profile</button>
-      <button @click="currentSection = 'Services'">Services</button>
-      <button @click="currentSection = 'History'">History</button>
+      <button @click="setSection('Profile')">Profile</button>
+      <button @click="setSection('Services')">Services</button>
+      <button @click="setSection('History')">History</button>
 
+      <!-- Profile Section -->
       <div v-if="currentSection === 'Profile'">
         <h3>Profile</h3>
         <form @submit.prevent="updateProfile">
@@ -16,33 +17,71 @@ export default {
         </form>
       </div>
 
+      <!-- Services Section -->
       <div v-if="currentSection === 'Services'">
         <h3>Available Services</h3>
         <ul>
           <li v-for="service in services" :key="service.id">
             {{ service.name }} - ₹{{ service.price }}
-            <button @click="viewProfessionals(service)">View Professionals</button>
+            <button @click="toggleProfessionals(service)">
+              {{ selectedService?.id === service.id ? 'Hide Professionals' : 'View Professionals' }}
+            </button>
+
+            <!-- Professionals Section -->
+            <div v-if="selectedService?.id === service.id">
+              <h3>Professionals for {{ selectedService.name }}</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Experience</th>
+                    <th>Rating</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="pro in professionals" :key="pro.id">
+                    <td>{{ pro.name }}</td>
+                    <td>{{ pro.experience }} years</td>
+                    <td>⭐ {{ pro.rating }}/5</td>
+                    <td>
+                      <button @click="bookService(pro.id)">Book</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <button @click="closeProfessionals">Close</button>
+            </div>
           </li>
         </ul>
       </div>
-      
-      <div v-if="professionals.length">
-        <h3>Professionals</h3>
-        <table>
-          <thead><tr><th>Name</th><th>Experience</th><th>Rating</th><th>Action</th></tr></thead>
+
+      <!-- History Section -->
+      <div v-if="currentSection === 'History'">
+        <h3>Service History</h3>
+        <table v-if="serviceHistory.length" border="1">
+          <thead>
+            <tr>
+              <th>Service Name</th>
+              <th>Amount (₹)</th>
+              <th>Professional ID</th>
+              <th>Status</th>
+              <th>Request Date</th>
+              <th>Completion Date</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="pro in professionals" :key="pro.id">
-              <td>{{ pro.name }}</td><td>{{ pro.experience }} years</td><td>⭐ {{ pro.rating }}/5</td>
-              <td><button @click="bookService(pro.id)">Book</button></td>
+            <tr v-for="history in serviceHistory" :key="history.id">
+              <td>{{ history.name }}</td>
+              <td>{{ history.amount }}</td>
+              <td>{{ history.professional_id }}</td>
+              <td>{{ history.status }}</td>
+              <td>{{ history.request_date }}</td>
+              <td>{{ history.completion_date || 'Pending' }}</td>
             </tr>
           </tbody>
         </table>
-        <button @click="closeProfessionals">Close</button>
-      </div>
-      
-      <div v-if="currentSection === 'History'">
-        <h3>Service History</h3>
-        <ul><li v-for="history in serviceHistory" :key="history.id">{{ history.serviceName }} - ₹{{ history.amount }}</li></ul>
+        <p v-else>No service history available.</p>
       </div>
     </div>
   `,
@@ -50,106 +89,101 @@ export default {
   data() {
     return {
       currentSection: 'Profile',
-      profile: {},
+      profile: {
+        id: null,
+        name: '',
+        contact_no: '',
+        address: '',
+      },
       services: [],
       professionals: [],
       serviceHistory: [],
       selectedService: null,
-      userId: JSON.parse(localStorage.getItem('user'))?.id || null,  // Handle null case
+      userId: JSON.parse(localStorage.getItem('user'))?.id || null,
     };
   },
 
   methods: {
-    async fetchData(url) {
+    async makeRequest(url, method = 'GET', body = null) {
       try {
-        const res = await fetch(url, { headers: { 'Authentication-Token': this.$store.state.auth_token } });
-        if (!res.ok) {
-          throw new Error('Failed to fetch data');
-        }
+        const options = {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authentication-Token': this.$store.state.auth_token,
+          },
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        const res = await fetch(url, options);
+        if (!res.ok) throw new Error(await res.text());
         return await res.json();
       } catch (error) {
-        console.error(error);
-        alert('An error occurred. Please try again later.');
-        return [];
+        console.error('Request Error:', error);
+        alert(`Error: ${error.message}`);
+        return null;
       }
     },
 
-    async loadProfile() {
-      if (this.userId) {
-        this.profile = await this.fetchData(`/api/customer/profile/${this.userId}`);
+    async loadData(section) {
+      if (section === 'Profile' && this.userId) {
+        const data = await this.makeRequest(`/api/customer/profile/${this.userId}`);
+        if (data) this.profile = data;
+      } 
+      if (section === 'Services') {
+        this.services = await this.makeRequest('/api/services') || [];
+      } 
+      if (section === 'History' && this.profile.id) {
+        this.serviceHistory = await this.makeRequest(`/api/requests/${this.profile.id}?role=customer`) || [];
       }
     },
 
     async updateProfile() {
-      if (this.userId) {
-        const res = await fetch(`/api/customer/profile/${this.userId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authentication-Token': this.$store.state.auth_token },
-          body: JSON.stringify(this.profile),
-        });
-        if (res.ok) {
-          alert('Profile updated');
-        } else {
-          alert('Failed to update profile');
-        }
+      if (!this.profile.id) return alert('Profile not found!');
+      const updated = await this.makeRequest(`/api/customer/profile/${this.userId}`, 'PUT', this.profile);
+      if (updated) alert('Profile updated successfully');
+    },
+
+    async toggleProfessionals(service) {
+      if (this.selectedService?.id === service.id) {
+        this.closeProfessionals();
+        return;
       }
-    },
-
-    async loadServices() {
-      this.services = await this.fetchData('/api/services');
-    },
-
-    async viewProfessionals(service) {
       this.selectedService = service;
-      this.professionals = await this.fetchData(`/api/professionals?serviceId=${service.id}`);
+      this.professionals = await this.makeRequest(`/api/professionals?serviceId=${service.id}`) || [];
     },
 
     closeProfessionals() {
       this.professionals = [];
+      this.selectedService = null;
     },
 
-    // Book service without calling loadProfile() again (as profile is already loaded)
     async bookService(professionalId) {
-      if (!this.profile.id) {
-        alert('Profile not found!');
-        return;
-      }
+      if (!this.profile.id) return alert('Profile not found!');
+      if (!this.selectedService) return alert('No service selected!');
 
-      if (!this.selectedService) {
-        alert('No service selected!');
-        return;
-      }
+      const body = {
+        professional_id: professionalId,
+        service_id: this.selectedService.id,
+      };
 
-      const res = await fetch(`/api/requests/${this.profile.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authentication-Token': this.$store.state.auth_token },
-        body: JSON.stringify({
-          professional_id: professionalId,
-          service_id: this.selectedService.id,
-        }),
-      });
-
-      if (res.ok) {
-        alert('Service booked');
+      const booked = await this.makeRequest(`/api/requests/${this.profile.id}`, 'POST', body);
+      if (booked) {
+        alert('Service booked successfully');
         this.closeProfessionals();
-        this.loadServiceHistory(); // Refresh service history after booking
-      } else {
-        alert('Failed to book service');
+        this.loadData('History');
       }
     },
 
-    // Load service history using profile.id
-    async loadServiceHistory() {
-      const role = 'customer';
-      if (this.profile.id) {
-        this.serviceHistory = await this.fetchData(`/api/requests/${this.profile.id}?role=${role}`);
-      }
+    setSection(section) {
+      this.currentSection = section;
+      this.selectedService = null;
+      this.professionals = [];
+      this.loadData(section);
     },
   },
 
   mounted() {
-    this.loadProfile();
-    this.loadServices();
-    this.loadServiceHistory();
-  }
+    this.setSection('Profile');
+  },
 };

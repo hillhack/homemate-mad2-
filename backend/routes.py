@@ -1,17 +1,35 @@
-from flask import current_app as app, jsonify, render_template, request
+from flask import current_app as app, jsonify, render_template, request,send_file
 from flask_security import verify_password, hash_password
-from backend.models import User, db, Professional, Customer, ProfessionalStats
-from datetime import datetime
-
+from backend.models import User, db, Professional, Customer, ProfessionalStats,ServiceRequest
+from flask_security import auth_required
+from celery.result import AsyncResult
+from backend.celery.task import export_service_requests
+import os
 datastore = app.security.datastore
-@app.get('/cache')
-def cache():
-    return {'time': str(datetime.now())}
-
 
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@auth_required('token') 
+@app.get('/export')
+def createCSV():
+    task = export_service_requests.delay()  # Start CSV generation
+    return {'task_id': task.id}, 200
+
+
+@auth_required('token') 
+@app.get('/get-csv/<id>')
+def getCSV(id):
+    result = AsyncResult(id)
+    if result.state == "SUCCESS":
+        file_path = f'./backend/celery/user-downloads/{result.result}'
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True)
+        return jsonify({"message": "File not found"}), 404  # Handle missing file
+    
+    return jsonify({"status": result.state}), 202  # Task still in progress
+
 
 @app.route('/login', methods=['POST'])
 def login():

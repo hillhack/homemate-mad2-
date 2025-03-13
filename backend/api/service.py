@@ -15,19 +15,38 @@ class ServiceListResource(Resource):
             return service_list, 200
         except Exception as e:
             return {'message': 'An error occurred.', 'error': str(e)}, 500
-    @auth_required('token')   
+        
+    @auth_required('token')
     def post(self):
-            """Create a new service."""
-            try:
-                data = request.get_json()
-                new_service = Service(name=data.get('name'))
-                db.session.add(new_service)
-                db.session.commit()
-                return {'message': 'Service created successfully', 'id': new_service.id}, 201
-            except Exception as e:
-                db.session.rollback()
-                return {'message': 'Error creating service', 'error': str(e)}, 500
+        """Create a new service."""
+        try:
+            data = request.get_json()
+            name = data.get('name')
+            base_price = data.get('base_price')  # Get base_price if provided
 
+            if not name:  # Ensure name is required
+                return {'message': 'Service name is required'}, 400
+
+            # Convert base_price to float if provided, else set it to None (NULL in DB)
+            base_price = float(base_price) if base_price is not None else None
+
+            new_service = Service(name=name, base_price=base_price)
+            db.session.add(new_service)
+            db.session.commit()
+
+            return {
+                'message': 'Service created successfully',
+                'id': new_service.id,
+                'name': new_service.name,
+                'base_price': new_service.base_price
+            }, 201
+
+        except ValueError:
+            return {'message': 'Invalid base_price format'}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {'message': 'Error creating service', 'error': str(e)}, 500
+    
 class ServiceResource(Resource):
     # This is for /api/services/<int:service_id> to handle CRUD operations
     @auth_required('token')  # Ensure the user is authenticated
@@ -43,21 +62,6 @@ class ServiceResource(Resource):
             return {'id': service.id, 'name': service.name, 'base_price': service.base_price}, 200
         except Exception as e:
             return {'message': 'An error occurred.', 'error': str(e)}, 500
-
-    @auth_required('token')
-    @roles_required('admin')  # Only Admin can add services
-    def post(self):
-        """
-        Admin can add new services.
-        """
-        try:
-            data = request.get_json()
-            new_service = Service(name=data['name'], base_price=data['base_price'])
-            db.session.add(new_service)
-            db.session.commit()
-            return {'message': 'Service added successfully'}, 201
-        except Exception as e:
-            return {'message': 'An error occurred while adding the service.', 'error': str(e)}, 500
 
     @auth_required('token')
     @roles_required('admin')  # Only Admin can update services
@@ -109,11 +113,16 @@ class ServiceRequestResource(Resource):
                 service_requests = ServiceRequest.query.filter_by(customer_id=profile_id).all()
             elif role == "professional":
                 service_requests = ServiceRequest.query.filter_by(professional_id=profile_id).all()
+                for req in service_requests:
+                    if not req.seen:
+                        req.seen = True
+                    db.session.commit()
             else:
                 return {"message": "Invalid role. Use 'customer' or 'professional'."}, 400
 
             return jsonify([{
                 "id": req.id,
+                "name" : req.service.name,
                 "service_id": req.service_id,
                 "customer_id": req.customer_id,
                 "professional_id": req.professional_id,

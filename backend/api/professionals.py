@@ -51,7 +51,18 @@ class ProfessionalProfile(Resource):
             return {'message': 'An error occurred.', 'error': str(e)}, 500
 
 class Professionals(Resource):
-    @cache.cached(timeout = 5, key_prefix = "professional_list")
+    def make_key(self):
+        """A function which is called to derive the key for a computed value.
+            The key in this case is the concat value of all the json request
+            parameters. Other strategy could to use any hashing function.
+        :returns: unique string for which the value should be cached.
+        """
+        service_id = request.args.get('serviceId', type=int) 
+        re = f"professional_list_{service_id}"
+        print(re)
+        return re
+
+    @cache.cached(timeout = 60, make_cache_key=make_key)
     def get(self):
         try:
             service_id = request.args.get('serviceId', type=int)  # Extract service ID from query parameters

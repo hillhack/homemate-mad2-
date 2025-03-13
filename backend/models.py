@@ -50,14 +50,13 @@ class Professional(db.Model):
     description = db.Column(db.Text, nullable=True)
     experience = db.Column(db.Integer, nullable=True)  # Number of years of experience
     service_id = db.Column(db.Integer, db.ForeignKey('service.id'), nullable=True)  # Many-to-One with Service
-
 # ProfessionalStats model for tracking professional's performance
 class ProfessionalStats(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     profile_id = db.Column(db.Integer, db.ForeignKey('professional.id'), nullable=False)  # One-to-One with Professional
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     approved_status = db.Column(db.String(15), default='Pending')  # Approval status
-    block = db.Column(db.String(10), default='No')  # Whether the professional is blocked
+    block = db.Column(db.String(10), default=False)  # Whether the professional is blocked
     average_rating = db.Column(db.Float, default=0.0)  # Professional's average rating
 
 # Customer model for service request functionality
@@ -67,7 +66,7 @@ class Customer(db.Model):
     name = db.Column(db.String(100), nullable=True)
     contact_no = db.Column(db.String(15), nullable=True)
     address = db.Column(db.String(200), nullable=True)
-    block = db.Column(db.String(10), default='NO')  # Whether the customer is blocked
+    block = db.Column(db.String(10), default=False)  # Whether the customer is blocked
 
     # One-to-One relationship with User (authentication data)
     user = db.relationship("User", backref="customer")
@@ -81,3 +80,6 @@ class ServiceRequest(db.Model):
     status = db.Column(db.String(50), default='Pending')  # Status of the service request (e.g., Pending, In Progress, Completed)
     request_date = db.Column(db.DateTime, default=datetime.utcnow)  # When the service request was created
     completion_date = db.Column(db.DateTime, nullable=True)  # When the service was completed
+    service = db.relationship('Service', backref='requests')
+    seen = db.Column(db.Boolean, default=False)#professinal seen it or nt
+

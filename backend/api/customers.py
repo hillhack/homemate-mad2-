@@ -31,14 +31,13 @@ class CustomerProfile(Resource):
             if not customer:
                 return {'message': 'Customer profile not found.'}, 404
             data = request.get_json()
-            if 'block' in data:
-                customer.block = data['block']
-                db.session.commit()
-                return {'message': 'Profile updated successfully.'}, 200
-            else:
+            if 'name' in data:
                 customer.name = data.get('name', customer.name)
                 customer.address = data.get('address', customer.address)
                 customer.contact_no = data.get('contact_no', customer.contact_no)
+                db.session.commit()
+            else:
+                customer.block = data['block']
                 db.session.commit()
             return {'message': 'Profile updated successfully.'}, 200
         except Exception as e:

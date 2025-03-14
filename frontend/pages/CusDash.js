@@ -1,35 +1,71 @@
 export default {
   template: `
-    <div>
+    <div class="mb-1 p-4 ">
       <h1>Customer Dashboard</h1>
+
+    <div class="mb-1 p-4">
       <button @click="setSection('Profile')">Profile</button>
       <button @click="setSection('Services')">Services</button>
       <button @click="setSection('History')">History</button>
+    </div>
 
       <!-- Profile Section -->
       <div v-if="currentSection === 'Profile'">
         <h3>Profile</h3>
-        <form @submit.prevent="updateProfile">
-          <input v-model="profile.name" placeholder="Name" required />
-          <input v-model="profile.contact_no" placeholder="Contact Number" required />
-          <input v-model="profile.address" placeholder="Address" required />
-          <button type="submit">Update</button>
+        <form @submit.prevent="updateProfile" class="profile-form">
+          <div>
+            <label>Name:</label>
+            <input v-model="profile.name" placeholder="Name" required />
+          </div>
+
+          <div>
+            <label>Contact Number:</label>
+            <input v-model="profile.contact_no" placeholder="Contact Number" required />
+          </div>
+
+          <div>
+            <label>Address:</label>
+            <input v-model="profile.address" placeholder="Address" required />
+          </div>
+
+          <div>
+            <button type="submit">Update</button>
+          </div>
         </form>
       </div>
 
       <!-- Services Section -->
-      <div v-if="currentSection === 'Services'">
+      <div  v-if="currentSection === 'Services'">
         <h3>Available Services</h3>
+
+        <!-- Bootstrap Search Bar -->
+        <div class="input-group mb-3" style="max-width: 500px; width: 20%;">
+          <input 
+            type="text" 
+            class="form-control" 
+            v-model="searchQuery" 
+            placeholder="Search services..." 
+          />
+          <div class="input-group-append">
+            <button class="btn btn-outline-secondary" type="button" @click="clearSearch">
+              Clear
+            </button>
+          </div>
+        </div>
+
         <ul>
-          <li v-for="service in services" :key="service.id">
+          <li 
+            v-for="service in filteredServices" 
+            :key="service.id"
+          >
             {{ service.name }} - ₹{{ service.price }}
-            <button @click="toggleProfessionals(service)">
+            <button class="btn btn-outline-secondary" @click="toggleProfessionals(service)">
               {{ selectedService?.id === service.id ? 'Hide Professionals' : 'View Professionals' }}
             </button>
 
             <!-- Professionals Section -->
-            <div v-if="selectedService?.id === service.id">
-              <h3>Professionals for {{ selectedService.name }}</h3>
+            <div class = "form-container" v-if="selectedService?.id === service.id">
+              <h4>Professionals for {{ selectedService.name }}</h4>
               <table>
                 <thead>
                   <tr>
@@ -50,7 +86,7 @@ export default {
                   </tr>
                 </tbody>
               </table>
-              <button @click="closeProfessionals">Close</button>
+              <button class="btn btn-outline-secondary" @click="closeProfessionals">Close</button>
             </div>
           </li>
         </ul>
@@ -96,11 +132,21 @@ export default {
         address: '',
       },
       services: [],
+      searchQuery: '',
       professionals: [],
       serviceHistory: [],
       selectedService: null,
       userId: JSON.parse(localStorage.getItem('user'))?.id || null,
     };
+  },
+
+  computed: {
+    filteredServices() {
+      if (!this.searchQuery) return this.services;
+      return this.services.filter(service =>
+        service.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+      );
+    },
   },
 
   methods: {
@@ -112,12 +158,12 @@ export default {
             'Content-Type': 'application/json',
             'Authentication-Token': this.$store.state.auth_token,
           },
+          body: body ? JSON.stringify(body) : null,
         };
-        if (body) options.body = JSON.stringify(body);
 
-        const res = await fetch(url, options);
-        if (!res.ok) throw new Error(await res.text());
-        return await res.json();
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(await response.text());
+        return await response.json();
       } catch (error) {
         console.error('Request Error:', error);
         alert(`Error: ${error.message}`);
@@ -130,9 +176,11 @@ export default {
         const data = await this.makeRequest(`/api/customer/profile/${this.userId}`);
         if (data) this.profile = data;
       } 
+
       if (section === 'Services') {
         this.services = await this.makeRequest('/api/services') || [];
       } 
+
       if (section === 'History' && this.profile.id) {
         this.serviceHistory = await this.makeRequest(`/api/requests/${this.profile.id}?role=customer`) || [];
       }
@@ -179,7 +227,12 @@ export default {
       this.currentSection = section;
       this.selectedService = null;
       this.professionals = [];
+      this.searchQuery = '';
       this.loadData(section);
+    },
+
+    clearSearch() {
+      this.searchQuery = '';
     },
   },
 

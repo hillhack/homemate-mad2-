@@ -21,15 +21,15 @@ const store = new Vuex.Store({
                 console.warn('not logged in')
         }         
         },
-
-        logout(state){
+        logout(state) {
             state.auth_token = null;
             state.role = null;
             state.loggedIn = false;
             state.user_id = null;
-
             localStorage.removeItem('user')
+
         }
+        
     },
     actions : {
         // actions commit mutations can be async

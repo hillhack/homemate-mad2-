@@ -1,0 +1,5 @@
+id,service_id,customer_id,professional_id,status,request_date,completion_date,seen
+1,1,1,1,Accepted,2025-03-13T13:58:18.194229,,True
+2,1,1,1,Accepted,2025-03-13T15:54:59.882486,,True
+3,2,1,2,Pending,2025-03-14T01:29:36.057628,,True
+4,1,1,1,Pending,2025-03-14T03:53:25.614020,,True

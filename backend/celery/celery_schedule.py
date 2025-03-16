@@ -51,7 +51,7 @@ def send_email_reminders():
 @shared_task
 def send_monthly_report():
     total_request = ServiceRequest.query.count()
-    closed_request = ServiceRequest.query.filter_by(status = "closed").count()
+    closed_request = ServiceRequest.query.filter_by(status = "completed").count()
     customers = db.session.query(Customer , User.email).join(User, Customer.user_id==User.id).all()
     
     for customer, email in customers:

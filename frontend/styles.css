@@ -29,6 +29,7 @@ h1 {
 .error, .warning { /* Both error and warning will now be red */
     color: #721c24;
     font-size: 24px;
+
 }
 .container {
     margin-top: 50px;

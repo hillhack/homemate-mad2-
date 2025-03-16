@@ -54,14 +54,33 @@ def login():
                 "category": "danger"
             }), 404
 
-        # Verify password
         if verify_password(password, user.password):
-            # Check if role matches
+            # Check professional block status
+            professional = Professional.query.filter_by(user_id=user.id).first()
+            if professional:
+                professional_stats = ProfessionalStats.query.filter_by(profile_id=professional.id).first()
+                print( type(professional_stats.block))
+                if professional_stats and professional_stats.block == '1':
+                    return jsonify({
+                        "message": "Your professional account is blocked. Please contact support.",
+                        "category": "error"
+                    }), 403
+
+            # Check customer block status
+            customer = Customer.query.filter_by(user_id=user.id).first()
+            if customer and customer.block == '1':
+                return jsonify({
+                    "message": "Your customer account is blocked. Please contact support.",
+                    "category": "error"
+                }), 403
+
+            # Check for role mismatch
             if role not in user.roles:
                 return jsonify({
                     "message": "Role mismatch. Please select the correct role.",
                     "category": "warning"
                 }), 403
+
 
             # Successful login
             return jsonify({

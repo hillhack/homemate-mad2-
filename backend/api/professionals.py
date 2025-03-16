@@ -67,31 +67,73 @@ class Professionals(Resource):
         try:
             service_id = request.args.get('serviceId', type=int)  # Extract service ID from query parameters
             if service_id:
-                professionals = Professional.query.filter_by(service_id=service_id).all()
+
+                # Query to get professionals along with their average rating
+                query = db.session.query(
+                    Professional.id,
+                    Professional.user_id,
+                    Professional.name,
+                    Professional.address,
+                    Professional.contact_no,
+                    Professional.description,
+                    Professional.experience,
+                    Professional.service_id,
+                    ProfessionalStats.approved_status,
+                    ProfessionalStats.average_rating
+                ).outerjoin(
+                    ProfessionalStats, Professional.id == ProfessionalStats.profile_id
+                ).filter(
+                    Professional.service_id == service_id
+                )
+
+                professionals = query.all()
+
+                # Construct the list of professionals with necessary details
+                professional_list = [
+                    {
+                        'id': p.id,
+                        'name': p.name,
+                        'contact_no': p.contact_no,
+                        'description': p.description,
+                        'experience': p.experience,
+                        'service_id': p.service_id,
+                        'approved_status': p.approved_status,
+                        'average_rating': p.average_rating if p.average_rating else 0.0
+                    } for p in professionals
+                ]
+
+                return professional_list, 200
             else:
                 professionals = Professional.query.all()
 
-            professional_list = [
-                {
-                    'id': p.id,
-                    'name': p.name,
-                    'contact_no': p.contact_no,
-                    'description': p.description,
-                    'experience': p.experience
-                } for p in professionals
-            ]
-            return professional_list, 200
+                professional_list = [
+                    {
+                        'id': p.id,
+                        'name': p.name,
+                        'contact_no': p.contact_no,
+                        'description': p.description,
+                        'experience': p.experience
+                    } for p in professionals
+                ]
+                return professional_list, 200
         except Exception as e:
             return {'message': 'An error occurred.', 'error': str(e)}, 500
+
+    
         
 class ProfessionalStatsResource(Resource):
     @cache.memoize(timeout = 5)
     def get(self, user_id):
+        professional = Professional.query.filter_by(id=user_id).first()
         professional_stats = ProfessionalStats.query.filter_by(profile_id=user_id).first()
+
         if not professional_stats:
             return {"message": "Professional stats not found"}, 404
         response = {
             "id": professional_stats.id,
+            "name": professional.name,
+            'contact_no': professional.contact_no,
+            
             "profile_id": professional_stats.profile_id,
             "date_created": professional_stats.date_created.strftime('%Y-%m-%d %H:%M:%S'),
             "approved_status": professional_stats.approved_status,

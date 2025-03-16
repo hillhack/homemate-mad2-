@@ -12,7 +12,7 @@ export default {
             <button @click="create_csv">Requests Data</button>
             
             <div v-if="activeSection">
-                <h1>{{ activeSection[0].toUpperCase() + activeSection.slice(1) }} List</h1>
+                <h4>{{ activeSection[0].toUpperCase() + activeSection.slice(1) }} List</h4>
                 
                 <!-- Add Service Button -->
                 <button v-if="activeSection === 'services'" @click="toggleServiceForm">Add Service</button>
@@ -29,44 +29,57 @@ export default {
                 </div>
 
                 <!-- Table Displaying Data -->
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th v-if="activeSection !== 'services'">Contact</th>
-                            <th v-if="activeSection === 'services'">Base Price</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="item in dataList" :key="item.id">
-                            <td>{{ item.id }}</td>
-                            <td>{{ item.name }}</td>
-                            <td v-if="activeSection !== 'services'">{{ item.contact_no }}</td>
-                            <td v-if="activeSection === 'services'">{{ item.base_price }}</td>
-                            <td>
-                                <button v-if="activeSection === 'professionals'" @click="selectProfessional(item)">View</button>
-                                <button v-if="activeSection === 'customers'" @click="selectCustomer(item)">View</button>
-                                <template v-if="activeSection === 'services'">
-                                    <button @click="editService(item)">Edit</button>
-                                    <button @click="deleteService(item.id)">Delete</button>
-                                </template>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Edit Service Form -->
-            <div v-if="editingService">
-                <h2>Edit Service</h2>
-                <form @submit.prevent="updateService">
-                    <input v-model="editingService.name" placeholder="Service Name" required />
-                    <input v-model.number="editingService.base_price" type="number" placeholder="Price" required />
-                    <button type="submit">Save</button>
-                    <button type="button" @click="cancelEdit">Cancel</button>
-                </form>
+                <div class="table-responsive" style="max-width: 80%; margin: 0 auto;"> 
+                    <table id="data-table" class="table table-sm table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th v-if="activeSection !== 'services'">Contact</th>
+                                <th v-if="activeSection === 'services'">Base Price</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in dataList" :key="item.id">
+                                <td>{{ item.id }}</td>
+                                <td>
+                                    <template v-if="editingId === item.id">
+                                        <input v-model="editingService.name" class="form-control" />
+                                    </template>
+                                    <template v-else>
+                                        {{ item.name }}
+                                    </template>
+                                </td>
+                                <td v-if="activeSection !== 'services'">{{ item.contact_no }}</td>
+                                <td v-if="activeSection === 'services'">
+                                    <template v-if="editingId === item.id">
+                                        <input v-model.number="editingService.base_price" type="number" class="form-control" />
+                                    </template>
+                                    <template v-else>
+                                        {{ item.base_price }}
+                                    </template>
+                                </td>
+                                <td>
+                                    <template v-if="activeSection === 'services'">
+                                        <template v-if="editingId === item.id">
+                                            <button @click="updateService(item)" class="btn btn-success btn-sm">Save</button>
+                                            <button @click="cancelEdit" class="btn btn-danger btn-sm">Cancel</button>
+                                        </template>
+                                        <template v-else>
+                                            <button @click="editService(item)" class="btn btn-primary btn-sm">Edit</button>
+                                            <button @click="deleteService(item.id)" class="btn btn-danger btn-sm">Delete</button>
+                                        </template>
+                                    </template>
+                                    <template v-else>
+                                        <button v-if="activeSection === 'professionals'" @click="selectProfessional(item)" class="btn btn-info btn-sm">View</button>
+                                        <button v-if="activeSection === 'customers'" @click="selectCustomer(item)" class="btn btn-info btn-sm">View</button>
+                                    </template>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     `,
@@ -74,9 +87,11 @@ export default {
     data: () => ({
         dataList: [],
         activeSection: null,
-        editingService: null,
+        editingId: null, // Track which row is being edited
+        editingService: { name: '', base_price: 0 }, // Store the edited service
         showServiceForm: false,
         newService: { name: '', base_price: 0 }, // Reset form
+        dataTable: null, // Reference to DataTable instance
     }),
 
     methods: {
@@ -88,12 +103,73 @@ export default {
                 });
                 if (res.ok) {
                     this.dataList = await res.json();
+                    this.initDataTable(); // Initialize DataTable after data is loaded
                 } else {
                     console.error(`Failed to fetch ${section}`);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
+        },
+
+        initDataTable() {
+            // Destroy existing DataTable instance if it exists
+            if (this.dataTable) {
+                this.dataTable.destroy();
+                this.dataTable = null;
+            }
+
+            // Initialize DataTable
+            this.$nextTick(() => {
+                this.dataTable = $('#data-table').DataTable({
+                    paging: true,
+                    searching: true,
+                    ordering: true,
+                    responsive: true,
+                    lengthMenu: [10, 25, 50, 100],
+                    language: {
+                        search: 'Search:',
+                        lengthMenu: 'Display _MENU_ records',
+                        info: 'Showing _START_ to _END_ of _TOTAL_ records',
+                    },
+                });
+            });
+        },
+
+        editService(item) {
+            if (this.dataTable) {
+                this.dataTable.destroy(); // Destroy DataTable before editing
+                this.dataTable = null;
+            }
+            this.editingId = item.id;
+            this.editingService = { ...item }; // Copy the item to the editing object
+        },
+
+        async updateService(item) {
+            try {
+                const res = await fetch(`/api/services/${item.id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authentication-Token': this.$store.state.auth_token 
+                    },
+                    body: JSON.stringify(this.editingService),
+                });
+                if (res.ok) {
+                    await this.loadData('services'); // Reload data after saving
+                    this.cancelEdit();
+                    this.initDataTable(); // Reinitialize DataTable after saving
+                } else {
+                    console.error('Failed to update service');
+                }
+            } catch (error) {
+                console.error('Error updating service:', error);
+            }
+        },
+
+        cancelEdit() {
+            this.editingId = null;
+            this.editingService = { name: '', base_price: 0 };
         },
 
         selectProfessional(professional) {
@@ -106,9 +182,7 @@ export default {
 
         toggleServiceForm() {
             this.showServiceForm = !this.showServiceForm;
-            if (this.showServiceForm) {
-                this.newService = { name: '', base_price: 0 }; // Reset form
-            }
+            this.newService = { name: '', base_price: 0 };
         },
 
         async addService() {
@@ -132,59 +206,6 @@ export default {
             }
         },
 
-        editService(service) {
-            this.editingService = { ...service };
-        },
-
-        async updateService() {
-            try {
-                const res = await fetch(`/api/services/${this.editingService.id}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'Authentication-Token': this.$store.state.auth_token 
-                    },
-                    body: JSON.stringify(this.editingService),
-                });
-                if (res.ok) {
-                    this.loadData('services');
-                    this.cancelEdit();
-                } else {
-                    console.error('Failed to update service');
-                }
-            } catch (error) {
-                console.error('Error updating service:', error);
-            }
-        },
-
-        async create_csv() {
-            try {
-                const res = await fetch(`${location.origin}/export`, {
-                    headers: { 'Authentication-Token': this.$store.state.auth_token }
-                });
-
-                if (!res.ok) throw new Error("Failed to start export");
-
-                const task_id = (await res.json()).task_id;
-                console.log(`Export task started with ID: ${task_id}`);
-
-                const interval = setInterval(async () => {
-                    try {
-                        const res = await fetch(`${location.origin}/get-csv/${task_id}`);
-                        if (res.ok) {
-                            console.log('Data is ready for download');
-                            window.open(`${location.origin}/get-csv/${task_id}`);
-                            clearInterval(interval);
-                        }
-                    } catch (err) {
-                        console.error("Error checking CSV export status:", err);
-                    }
-                }, 5000);
-            } catch (error) {
-                console.error("Error creating CSV:", error);
-            }
-        },
-
         async deleteService(serviceId) {
             if (!confirm('Are you sure?')) return;
             try {
@@ -202,8 +223,37 @@ export default {
             }
         },
 
-        cancelEdit() {
-            this.editingService = null;
+        async create_csv() {
+            try {
+                const res = await fetch(`/export`, {
+                    headers: { 'Authentication-Token': this.$store.state.auth_token }
+                });
+
+                if (res.ok) {
+                    const { task_id } = await res.json();
+
+                    const checkStatus = async () => {
+                        const statusRes = await fetch(`/get-csv/${task_id}`);
+                        if (statusRes.ok) {
+                            window.open(`/get-csv/${task_id}`);
+                        } else {
+                            setTimeout(checkStatus, 3000);
+                        }
+                    };
+
+                    checkStatus();
+                }
+            } catch (error) {
+                console.error("Error creating CSV:", error);
+            }
         },
+    },
+
+    mounted() {
+        this.initDataTable(); // Initialize DataTable on mount
+    },
+
+    beforeUnmount() {
+        if (this.dataTable) this.dataTable.destroy(); // Clean up DataTable instance
     },
 };

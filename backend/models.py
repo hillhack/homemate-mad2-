@@ -26,11 +26,8 @@ class Role(db.Model, RoleMixin):
 # Review model for customer feedback
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    professional_id = db.Column(db.Integer, db.ForeignKey('professional.id'), nullable=False)
-    customer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    rating = db.Column(db.Integer, nullable=False)  # Rating from 1 to 5
+    rating = db.Column(db.Integer, nullable=True)  # Rating from 1 to 5
     comment = db.Column(db.Text, nullable=True)
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
     service_request_id = db.Column(db.Integer, db.ForeignKey('service_request.id'), nullable=False)
 
 # Service model for services offered

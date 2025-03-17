@@ -114,8 +114,8 @@ export default {
                 <th>Service Name</th>
                 <th>Professional ID</th>
                 <th>Request Date</th>
-                <th>Completion Date</th>
                 <th>Status</th>
+                <th>Completion Date</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -245,6 +245,7 @@ export default {
     </table>
   </div>
   <p v-else class="text-muted">No service history available.</p>
+</div>
 </div>
   `,
 
@@ -446,10 +447,10 @@ export default {
 
         // Send the update request to the backend
         const updated = await this.makeRequest(
-          `/api/requests/${service.id}`, 
+          `/api/requests/${this.profile.id}?role=customer`, 
           'PUT', 
           {
-            completion_date: completionDateISO,
+            request_id: service.id,completion_date: completionDateISO,
           }
         );
 

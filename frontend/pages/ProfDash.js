@@ -172,7 +172,7 @@ export default {
               <tr v-for="work in currentWork" :key="work.id">
                 <td>{{ getServiceName(work.service_id) }}</td>
                 <td>{{ formatDate(work.request_date) }}</td>
-                <td>{{ work.completion_date ? formatDate(work.completion_date) : 'Not Set' }}</td>
+                <td>{{ work.completion_date : 'Not Set' }}</td>
                 <td>
                   <button 
                     @click="markAsCompleted(work.id)" 
@@ -344,12 +344,6 @@ export default {
     getServiceName(serviceId) {
       const service = this.availableServices.find(s => s.id === serviceId);
       return service ? service.name : 'Unknown Service';
-    },
-
-    formatDate(dateString) {
-      if (!dateString) return 'N/A';
-      const date = new Date(dateString);
-      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
     },
 
     async updateRequestStatus(requestId, status) {

@@ -62,7 +62,7 @@ class Professionals(Resource):
         print(re)
         return re
 
-    @cache.cached(timeout = 60, make_cache_key=make_key)
+    @cache.cached(timeout = 50, make_cache_key=make_key)
     def get(self):
         try:
             service_id = request.args.get('serviceId', type=int)  # Extract service ID from query parameters

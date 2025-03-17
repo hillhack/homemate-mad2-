@@ -125,13 +125,7 @@ export default {
                 <td>{{ getServiceName(request.service_id) }}</td>
                 <td>{{ request.customer_id }}</td>
                 <td>{{ formatDate(request.request_date) }}</td>
-                <td>
-                  <input 
-                    type="date" 
-                    v-model="request.completion_date" 
-                    class="form-control" 
-                  />
-                </td>
+                <td>{{ request.completion_date ? formatDate(request.completion_date) : 'Not Set' }}</td>
                 <td>
                   <div class="d-flex gap-2">
                     <button 
@@ -172,7 +166,7 @@ export default {
               <tr v-for="work in currentWork" :key="work.id">
                 <td>{{ getServiceName(work.service_id) }}</td>
                 <td>{{ formatDate(work.request_date) }}</td>
-                <td>{{ work.completion_date : 'Not Set' }}</td>
+                <td>{{ work.completion_date ? formatDate(work.completion_date) : 'Not Set' }}</td>
                 <td>
                   <button 
                     @click="markAsCompleted(work.id)" 
@@ -213,7 +207,7 @@ export default {
                 <td>{{ record.customer_id }}</td>
                 <td>{{ record.status }}</td>
                 <td>{{ formatDate(record.request_date) }}</td>
-                <td>{{ formatDate(record.completion_date) }}</td>
+                <td>{{ record.completion_date ? formatDate(record.completion_date) : 'Not Set' }}</td>
               </tr>
               <!-- Rejected Requests -->
               <tr v-for="record in rejectedRequests" :key="record.id">
@@ -223,7 +217,7 @@ export default {
                 <td>{{ record.customer_id }}</td>
                 <td>{{ record.status }}</td>
                 <td>{{ formatDate(record.request_date) }}</td>
-                <td>{{ formatDate(record.completion_date) }}</td>
+                <td>{{ record.completion_date ? formatDate(record.completion_date) : 'Not Set' }}</td>
               </tr>
             </tbody>
           </table>
@@ -344,6 +338,12 @@ export default {
     getServiceName(serviceId) {
       const service = this.availableServices.find(s => s.id === serviceId);
       return service ? service.name : 'Unknown Service';
+    },
+
+    formatDate(date) {
+      if (!date) return 'Not Set';
+      const jsDate = new Date(date);
+      return jsDate.toLocaleDateString(); // Format as locale-specific date
     },
 
     async updateRequestStatus(requestId, status) {

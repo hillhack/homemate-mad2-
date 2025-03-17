@@ -1,9 +1,0 @@
-id,service_id,customer_id,professional_id,status,request_date,completion_date,seen
-1,1,1,1,Completed,2025-03-12T02:14:01.474788,2025-03-15T02:14:01.474799,True
-2,2,2,2,Accepted,2025-03-14T02:14:01.475262,,False
-3,1,1,1,Completed,2025-03-12T02:16:01.242668,2025-03-15T02:16:01.242686,True
-4,2,2,2,Accepted,2025-03-14T02:16:01.243187,,False
-5,1,1,1,Completed,2025-03-12T02:16:03.804450,2025-03-15T02:16:03.804458,True
-6,2,2,2,Accepted,2025-03-14T02:16:03.804913,,False
-7,1,1,1,Completed,2025-03-12T02:16:06.790358,2025-03-15T02:16:06.790366,True
-8,2,2,2,Accepted,2025-03-14T02:16:06.790815,,False

@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "chart.js": "^4.4.8",
-    "datatables.net": "^2.2.2",
-    "datatables.net-bs5": "^2.2.2",
-    "datatables.net-dt": "^2.2.2",
-    "jquery": "^3.7.1"
-  }
-}

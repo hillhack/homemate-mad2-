@@ -223,6 +223,3 @@ View emails at: [http://localhost:8025](http://localhost:8025)
 This project is intended for educational use as part of the **Modern Application Development II** course at **IIT Madras**.
 
 ---
-```
-
-Let me know if you want it in `.md` file format directly or you'd like to embed API routes, `.env.example`, or screenshots!
